@@ -1,0 +1,29 @@
+kind = "video"
+videoAspectRatio = "16:9"
+previewPath = "/akuma-deduction-film/"
+title = "Akuma Deduction — Animated Promo"
+description = "A short animated film introducing Akuma Deduction, the four-player 2v2 hidden-suit card game."
+version = "1.0.0"
+id = "artifacts/akuma-deduction-film"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/akuma-deduction-film/" ]
+localPort = 22268
+
+[services.development]
+run = "pnpm --filter @workspace/akuma-deduction-film run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/akuma-deduction-film", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/akuma-deduction-film/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "22268"
+BASE_PATH = "/akuma-deduction-film/"
