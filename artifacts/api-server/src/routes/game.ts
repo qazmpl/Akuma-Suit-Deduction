@@ -6,6 +6,8 @@ import {
   StartGameRoomBody,
   SubmitGameActionBody,
 } from "@workspace/api-zod";
+import { db, gameRooms } from "@workspace/db";
+import { eq } from "drizzle-orm";
 
 type Suit = "SPADES" | "HEARTS" | "DIAMONDS" | "CLUBS" | "DEMON";
 type Team = "A" | "B";
@@ -59,20 +61,15 @@ type RoomView = {
 };
 
 const router: IRouter = Router();
-const rooms = new Map<string, PrivateRoom>();
 const SEATS: Seat[] = ["A1", "B1", "A2", "B2"];
 const SUITS: Suit[] = ["SPADES", "HEARTS", "DIAMONDS", "CLUBS", "DEMON"];
 const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
 function makeRoomCode(): string {
-  let code = "";
-  do {
-    code = Array.from(
-      { length: 4 },
-      () => CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)],
-    ).join("");
-  } while (rooms.has(code));
-  return code;
+  return Array.from(
+    { length: 4 },
+    () => CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)],
+  ).join("");
 }
 
 function shuffle<T>(items: T[]): T[] {
@@ -118,8 +115,53 @@ function roomView(room: PrivateRoom, playerId: string): RoomView {
   };
 }
 
-function getRoom(code: string | undefined): PrivateRoom | undefined {
-  return code ? rooms.get(code.trim().toUpperCase()) : undefined;
+async function getRoom(code: string | undefined): Promise<PrivateRoom | undefined> {
+  if (!code) return undefined;
+  const normalizedCode = code.trim().toUpperCase();
+  const [row] = await db
+    .select()
+    .from(gameRooms)
+    .where(eq(gameRooms.code, normalizedCode))
+    .limit(1);
+  return row ? (row.state as PrivateRoom) : undefined;
+}
+
+type RoomMutation = {
+  status: number;
+  body: unknown;
+  persist: boolean;
+  remove?: boolean;
+};
+
+async function mutateRoom(
+  code: string | undefined,
+  mutation: (room: PrivateRoom) => RoomMutation,
+): Promise<RoomMutation | undefined> {
+  if (!code) return undefined;
+  const normalizedCode = code.trim().toUpperCase();
+  return db.transaction(async (tx) => {
+    const [row] = await tx
+      .select()
+      .from(gameRooms)
+      .where(eq(gameRooms.code, normalizedCode))
+      .limit(1)
+      .for("update");
+    if (!row) return undefined;
+
+    const room = row.state as PrivateRoom;
+    const result = mutation(room);
+    if (result.persist) {
+      if (result.remove) {
+        await tx.delete(gameRooms).where(eq(gameRooms.code, normalizedCode));
+      } else {
+        await tx
+          .update(gameRooms)
+          .set({ state: room })
+          .where(eq(gameRooms.code, normalizedCode));
+      }
+    }
+    return result;
+  });
 }
 
 function getPlayer(room: PrivateRoom, playerId: string): Player | undefined {
@@ -144,7 +186,7 @@ function headerValue(value: string | string[] | undefined): string {
   return Array.isArray(value) ? (value[0] ?? "") : (value ?? "");
 }
 
-router.post("/games/rooms/create", (req, res) => {
+router.post("/games/rooms/create", async (req, res) => {
   const parsed = CreateGameRoomBody.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: "Enter a valid player name to create a room." });
@@ -155,31 +197,38 @@ router.post("/games/rooms/create", (req, res) => {
     return res.status(400).json({ error: "Player name cannot be blank." });
   }
 
-  const code = makeRoomCode();
-  const room: PrivateRoom = {
-    code,
-    phase: "LOBBY",
-    hostPlayerId: playerId,
-    players: [{ id: playerId, name: name.slice(0, 24), team: "A", seat: "A1" }],
-    target: null,
-    hands: { A: [], B: [] },
-    drawPile: [],
-    revealedCards: [],
-    incorrectGuesses: [],
-    winnerTeam: null,
-    turnSeat: null,
-    turnNumber: 0,
-    lastActionMessage: "Room created. Waiting for three more players.",
-    updatedAt: Date.now(),
-  };
-  rooms.set(code, room);
-  return res.status(201).json(roomView(room, playerId));
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const code = makeRoomCode();
+    const room: PrivateRoom = {
+      code,
+      phase: "LOBBY",
+      hostPlayerId: playerId,
+      players: [{ id: playerId, name: name.slice(0, 24), team: "A", seat: "A1" }],
+      target: null,
+      hands: { A: [], B: [] },
+      drawPile: [],
+      revealedCards: [],
+      incorrectGuesses: [],
+      winnerTeam: null,
+      turnSeat: null,
+      turnNumber: 0,
+      lastActionMessage: "Room created. Waiting for three more players.",
+      updatedAt: Date.now(),
+    };
+    const created = await db
+      .insert(gameRooms)
+      .values({ code, state: room })
+      .onConflictDoNothing()
+      .returning({ code: gameRooms.code });
+    if (created.length > 0) return res.status(201).json(roomView(room, playerId));
+  }
+  return res.status(503).json({ error: "Could not create a unique room code. Please try again." });
 });
 
-router.get("/games/rooms/state", (req, res) => {
+router.get("/games/rooms/state", async (req, res) => {
   const code = headerValue(req.headers["x-room-code"]);
   const playerId = headerValue(req.headers["x-player-id"]);
-  const room = getRoom(code);
+  const room = await getRoom(code);
   if (!room) return res.status(404).json({ error: "This room is no longer available." });
   if (!getPlayer(room, playerId)) {
     return res.status(404).json({ error: "You are no longer in this room." });
@@ -187,165 +236,186 @@ router.get("/games/rooms/state", (req, res) => {
   return res.json(roomView(room, playerId));
 });
 
-router.post("/games/rooms/join", (req, res) => {
+router.post("/games/rooms/join", async (req, res) => {
   const parsed = JoinGameRoomBody.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: "Enter a four-character room code and player name." });
   }
   const { playerId } = parsed.data;
-  const room = getRoom(parsed.data.code);
-  if (!room) return res.status(404).json({ error: "Room not found. Check the code and try again." });
+  const outcome = await mutateRoom(parsed.data.code, (room) => {
+    const existingPlayer = getPlayer(room, playerId);
+    if (existingPlayer) {
+      existingPlayer.name = parsed.data.name.trim().slice(0, 24) || existingPlayer.name;
+      room.updatedAt = Date.now();
+      return { status: 200, body: roomView(room, playerId), persist: true };
+    }
+    if (room.phase === "FINISHED") {
+      return { status: 409, body: { error: "This game has ended." }, persist: false };
+    }
+    const seat = SEATS.find(
+      (candidate) => !room.players.some((player) => player.seat === candidate),
+    );
+    if (!seat) return { status: 409, body: { error: "This room is full." }, persist: false };
+    const name = parsed.data.name.trim();
+    if (!name) {
+      return { status: 400, body: { error: "Player name cannot be blank." }, persist: false };
+    }
 
-  const existingPlayer = getPlayer(room, playerId);
-  if (existingPlayer) {
-    existingPlayer.name = parsed.data.name.trim().slice(0, 24) || existingPlayer.name;
+    room.players.push({
+      id: playerId,
+      name: name.slice(0, 24),
+      team: seat.startsWith("A") ? "A" : "B",
+      seat,
+    });
     room.updatedAt = Date.now();
-    return res.json(roomView(room, playerId));
-  }
-  if (room.phase === "FINISHED") {
-    return res.status(409).json({ error: "This game has ended." });
-  }
-  const seat = SEATS.find(
-    (candidate) => !room.players.some((player) => player.seat === candidate),
-  );
-  if (!seat) return res.status(409).json({ error: "This room is full." });
-  const name = parsed.data.name.trim();
-  if (!name) return res.status(400).json({ error: "Player name cannot be blank." });
-
-  room.players.push({
-    id: playerId,
-    name: name.slice(0, 24),
-    team: seat.startsWith("A") ? "A" : "B",
-    seat,
+    room.lastActionMessage = `${name.slice(0, 24)} joined the room.`;
+    return { status: 200, body: roomView(room, playerId), persist: true };
   });
-  room.updatedAt = Date.now();
-  room.lastActionMessage = `${name.slice(0, 24)} joined the room.`;
-  return res.json(roomView(room, playerId));
+  if (!outcome) {
+    return res.status(404).json({ error: "Room not found. Check the code and try again." });
+  }
+  return res.status(outcome.status).json(outcome.body);
 });
 
-router.post("/games/rooms/leave", (req, res) => {
+router.post("/games/rooms/leave", async (req, res) => {
   const parsed = LeaveGameRoomBody.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Invalid leave request." });
-  const room = getRoom(parsed.data.code);
-  if (!room) return res.status(404).json({ error: "Room not found." });
-  const player = getPlayer(room, parsed.data.playerId);
-  if (!player) return res.status(404).json({ error: "You are no longer in this room." });
+  const outcome = await mutateRoom(parsed.data.code, (room) => {
+    const player = getPlayer(room, parsed.data.playerId);
+    if (!player) {
+      return { status: 404, body: { error: "You are no longer in this room." }, persist: false };
+    }
 
-  const leavingSeat = player.seat;
-  room.players = room.players.filter((candidate) => candidate.id !== player.id);
-  if (room.hostPlayerId === player.id) {
-    room.hostPlayerId = room.players[0]?.id ?? "";
-  }
-  if (room.phase === "PLAYING" && room.turnSeat === leavingSeat) {
-    advanceTurn(room, leavingSeat);
-  }
-  room.lastActionMessage = `${player.name} left the room.`;
-  room.updatedAt = Date.now();
-  if (room.players.length === 0) {
-    rooms.delete(room.code);
-    return res.json({ left: true, roomClosed: true });
-  }
-  return res.json({ left: true, roomClosed: false });
+    const leavingSeat = player.seat;
+    room.players = room.players.filter((candidate) => candidate.id !== player.id);
+    if (room.hostPlayerId === player.id) {
+      room.hostPlayerId = room.players[0]?.id ?? "";
+    }
+    if (room.phase === "PLAYING" && room.turnSeat === leavingSeat) {
+      advanceTurn(room, leavingSeat);
+    }
+    room.lastActionMessage = `${player.name} left the room.`;
+    room.updatedAt = Date.now();
+    const roomClosed = room.players.length === 0;
+    return {
+      status: 200,
+      body: { left: true, roomClosed },
+      persist: true,
+      remove: roomClosed,
+    };
+  });
+  if (!outcome) return res.status(404).json({ error: "Room not found." });
+  return res.status(outcome.status).json(outcome.body);
 });
 
-router.post("/games/rooms/start", (req, res) => {
+router.post("/games/rooms/start", async (req, res) => {
   const parsed = StartGameRoomBody.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Invalid start request." });
-  const room = getRoom(parsed.data.code);
-  if (!room) return res.status(404).json({ error: "Room not found." });
-  if (room.hostPlayerId !== parsed.data.playerId) {
-    return res.status(403).json({ error: "Only the host can start the game." });
-  }
-  if (room.phase !== "LOBBY") {
-    return res.status(400).json({ error: "This game has already started." });
-  }
-  if (room.players.length !== 4) {
-    return res.status(400).json({ error: "Four players are needed to start." });
-  }
+  const outcome = await mutateRoom(parsed.data.code, (room) => {
+    if (room.hostPlayerId !== parsed.data.playerId) {
+      return { status: 403, body: { error: "Only the host can start the game." }, persist: false };
+    }
+    if (room.phase !== "LOBBY") {
+      return { status: 400, body: { error: "This game has already started." }, persist: false };
+    }
+    if (room.players.length !== 4) {
+      return { status: 400, body: { error: "Four players are needed to start." }, persist: false };
+    }
 
-  const deck = shuffle(createDeck());
-  room.target = deck.pop() ?? null;
-  room.hands = {
-    A: [deck.pop()!, deck.pop()!, deck.pop()!],
-    B: [deck.pop()!, deck.pop()!, deck.pop()!],
-  };
-  room.drawPile = deck;
-  room.revealedCards = [];
-  room.incorrectGuesses = [];
-  room.winnerTeam = null;
-  room.turnSeat = "A1";
-  room.turnNumber = 1;
-  room.phase = "PLAYING";
-  room.lastActionMessage = "Game started. A1 has the first move.";
-  room.updatedAt = Date.now();
-  return res.json(roomView(room, parsed.data.playerId));
+    const deck = shuffle(createDeck());
+    room.target = deck.pop() ?? null;
+    room.hands = {
+      A: [deck.pop()!, deck.pop()!, deck.pop()!],
+      B: [deck.pop()!, deck.pop()!, deck.pop()!],
+    };
+    room.drawPile = deck;
+    room.revealedCards = [];
+    room.incorrectGuesses = [];
+    room.winnerTeam = null;
+    room.turnSeat = "A1";
+    room.turnNumber = 1;
+    room.phase = "PLAYING";
+    room.lastActionMessage = "Game started. A1 has the first move.";
+    room.updatedAt = Date.now();
+    return { status: 200, body: roomView(room, parsed.data.playerId), persist: true };
+  });
+  if (!outcome) return res.status(404).json({ error: "Room not found." });
+  return res.status(outcome.status).json(outcome.body);
 });
 
-router.post("/games/rooms/actions", (req, res) => {
+router.post("/games/rooms/actions", async (req, res) => {
   const parsed = SubmitGameActionBody.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Choose a valid game action." });
   const input = parsed.data;
-  const room = getRoom(input.code);
-  if (!room) return res.status(404).json({ error: "Room not found." });
-  if (room.phase !== "PLAYING" || !room.turnSeat) {
-    return res.status(400).json({ error: "This game is not accepting actions." });
-  }
-  const player = getPlayer(room, input.playerId);
-  if (!player) return res.status(404).json({ error: "You are no longer in this room." });
-  if (player.seat !== room.turnSeat) {
-    return res.status(400).json({ error: "It is not your turn yet." });
-  }
+  const outcome = await mutateRoom(input.code, (room) => {
+    if (room.phase !== "PLAYING" || !room.turnSeat) {
+      return { status: 400, body: { error: "This game is not accepting actions." }, persist: false };
+    }
+    const player = getPlayer(room, input.playerId);
+    if (!player) {
+      return { status: 404, body: { error: "You are no longer in this room." }, persist: false };
+    }
+    if (player.seat !== room.turnSeat) {
+      return { status: 400, body: { error: "It is not your turn yet." }, persist: false };
+    }
 
-  if (input.action === "REVEAL") {
-    const cardIds = input.cardIds ?? [];
-    if (cardIds.length < 1 || cardIds.length > 3 || new Set(cardIds).size !== cardIds.length) {
-      return res.status(400).json({ error: "Reveal one, two, or three different cards." });
-    }
-    if (cardIds.length > room.drawPile.length) {
-      return res.status(400).json({ error: "There are not enough cards left to replace that reveal." });
-    }
-    const hand = room.hands[player.team];
-    if (cardIds.some((id) => !hand.some((card) => card.id === id))) {
-      return res.status(400).json({ error: "Those cards are not in your team's hand." });
-    }
-    const revealed = hand.filter((card) => cardIds.includes(card.id));
-    room.hands[player.team] = hand.filter((card) => !cardIds.includes(card.id));
-    room.revealedCards.push(
-      ...revealed.map((card) => ({
-        ...card,
-        team: player.team,
-        playerName: player.name,
-        turnNumber: room.turnNumber,
-      })),
-    );
-    for (let index = 0; index < revealed.length; index += 1) {
-      const replacement = room.drawPile.pop();
-      if (replacement) room.hands[player.team].push(replacement);
-    }
-    room.lastActionMessage = `${player.name} revealed ${revealed.length} ${revealed.length === 1 ? "card" : "cards"}.`;
-    const previousSeat = room.turnSeat;
-    advanceTurn(room, previousSeat);
-  } else {
-    const suit = input.suit as Suit | undefined;
-    if (!suit || !SUITS.includes(suit)) {
-      return res.status(400).json({ error: "Choose a suit to guess." });
-    }
-    if (room.incorrectGuesses.includes(suit)) {
-      return res.status(400).json({ error: "That suit has already been ruled out." });
-    }
-    if (room.target?.suit === suit) {
-      room.winnerTeam = player.team;
-      room.phase = "FINISHED";
-      room.lastActionMessage = `${player.name} found the target suit. Team ${player.team} wins.`;
-    } else {
-      room.incorrectGuesses.push(suit);
-      room.lastActionMessage = `${player.name} ruled out ${suit.toLowerCase()}.`;
+    if (input.action === "REVEAL") {
+      const cardIds = input.cardIds ?? [];
+      if (cardIds.length < 1 || cardIds.length > 3 || new Set(cardIds).size !== cardIds.length) {
+        return { status: 400, body: { error: "Reveal one, two, or three different cards." }, persist: false };
+      }
+      if (cardIds.length > room.drawPile.length) {
+        return {
+          status: 400,
+          body: { error: "There are not enough cards left to replace that reveal." },
+          persist: false,
+        };
+      }
+      const hand = room.hands[player.team];
+      if (cardIds.some((id) => !hand.some((card) => card.id === id))) {
+        return { status: 400, body: { error: "Those cards are not in your team's hand." }, persist: false };
+      }
+      const revealed = hand.filter((card) => cardIds.includes(card.id));
+      room.hands[player.team] = hand.filter((card) => !cardIds.includes(card.id));
+      room.revealedCards.push(
+        ...revealed.map((card) => ({
+          ...card,
+          team: player.team,
+          playerName: player.name,
+          turnNumber: room.turnNumber,
+        })),
+      );
+      for (let index = 0; index < revealed.length; index += 1) {
+        const replacement = room.drawPile.pop();
+        if (replacement) room.hands[player.team].push(replacement);
+      }
+      room.lastActionMessage = `${player.name} revealed ${revealed.length} ${revealed.length === 1 ? "card" : "cards"}.`;
       const previousSeat = room.turnSeat;
       advanceTurn(room, previousSeat);
+    } else {
+      const suit = input.suit as Suit | undefined;
+      if (!suit || !SUITS.includes(suit)) {
+        return { status: 400, body: { error: "Choose a suit to guess." }, persist: false };
+      }
+      if (room.incorrectGuesses.includes(suit)) {
+        return { status: 400, body: { error: "That suit has already been ruled out." }, persist: false };
+      }
+      if (room.target?.suit === suit) {
+        room.winnerTeam = player.team;
+        room.phase = "FINISHED";
+        room.lastActionMessage = `${player.name} found the target suit. Team ${player.team} wins.`;
+      } else {
+        room.incorrectGuesses.push(suit);
+        room.lastActionMessage = `${player.name} ruled out ${suit.toLowerCase()}.`;
+        const previousSeat = room.turnSeat;
+        advanceTurn(room, previousSeat);
+      }
     }
-  }
-  room.updatedAt = Date.now();
-  return res.json(roomView(room, input.playerId));
+    room.updatedAt = Date.now();
+    return { status: 200, body: roomView(room, input.playerId), persist: true };
+  });
+  if (!outcome) return res.status(404).json({ error: "Room not found." });
+  return res.status(outcome.status).json(outcome.body);
 });
 
 export default router;
