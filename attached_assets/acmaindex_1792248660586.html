@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ACMA // 2v2 Card Deduction</title>
+    <style>
+        :root {
+            --bg-main: #0B0B0B;
+            --bg-panel: #141414;
+            --bg-surface: #1E1E1E;
+            --text-primary: #F3F4F6;
+            --text-secondary: #9CA3AF;
+            --accent-team-a: #FF2E54;
+            --accent-team-b: #00E5FF;
+            --accent-gold: #FFD700;
+            --card-white: #FAFAFA;
+            --card-dark: #222222;
+            --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-main);
+            color: var(--text-primary);
+            overflow-x: hidden;
+            overflow-y: auto;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* Screen States */
+        .screen {
+            display: none;
+            width: 100%;
+            max-width: 500px;
+            min-height: 100vh;
+            padding: 20px;
+            flex-direction: column;
+            justify-content: flex-start;
+            position: relative;
+        }
+
+        .screen.active {
+            display: flex;
+            animation: fadeIn 0.4s ease-out forwards;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Typography & Visual Anchors */
+        h1, h2, h3 {
+            font-weight: 700;
+            letter-spacing: -0.025em;
+            text-transform: uppercase;
+        }
+
+        .gold-glow {
+            color: var(--accent-gold);
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.2);
+        }
+
+        /* Form Controls */
+        .input-group {
+            margin-bottom: 20px;
+            width: 100%;
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .input-field {
+            width: 100%;
+            background-color: var(--bg-surface);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: var(--text-primary);
+            padding: 14px 16px;
+            border-radius: 12px;
+            font-size: 16px;
+            outline: none;
+            transition: var(--transition-smooth);
+        }
+
+        .input-field:focus {
+            border-color: var(--text-secondary);
+        }
+
+        /* Premium Buttons without Hover Gimmicks */
+        .btn {
+            width: 100%;
+            background-color: var(--text-primary);
+            color: var(--bg-main);
+            padding: 16px;
+            border: none;
+            border-radius: 14px;
+            font-size: 16px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+            cursor: pointer;
+            transition: var(--transition-smooth);
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn:active {
+            transform: scale(0.97);
+            opacity: 0.9;
+        }
+
+        .btn-secondary {
+            background-color: var(--bg-surface);
+            color: var(--text-primary);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .btn-team-a {
+            background-color: var(--accent-team-a);
+            color: white;
+        }
+
+        .btn-team-b {
+            background-color: var(--accent-team-b);
+            color: var(--bg-main);
+        }
+
+        /* Segmented Toggles */
+        .toggle-group {
+            display: flex;
+            background-color: var(--bg-surface);
+            padding: 4px;
+            border-radius: 12px;
+            gap: 4px;
+            margin-bottom: 20px;
+        }
+
+        .toggle-opt {
+            flex: 1;
+            text-align: center;
+            padding: 12px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: var(--transition-smooth);
+        }
+
+        .toggle-opt.active {
+            background-color: rgba(255,255,255,0.1);
+            color: var(--text-primary);
+        }
+
+        /* Header Info Bar */
+        .status-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: var(--bg-panel);
+            padding: 14px 18px;
+            border-radius: 16px;
+            margin-bottom: 16px;
+            border: 1px solid rgba(255,255,255,0.03);
+        }
+
+        .room-tag {
+            font-family: monospace;
+            font-size: 14px;
+            letter-spacing: 1px;
+            color: var(--accent-gold);
+        }
+
+        /* Leaderboard and Player Grid */
+        .player-status-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .player-badge {
+            background-color: var(--bg-panel);
+            padding: 12px;
+            border-radius: 14px;
+            border-left: 4px solid #333;
+            transition: var(--transition-smooth);
+            position: relative;
+        }
+
+        .player-badge.team-A { border-left-color: var(--accent-team-a); }
+        .player-badge.team-B { border-left-color: var(--accent-team-b); }
+        .player-badge.active-turn {
+            box-shadow: 0 0 15px rgba(255,255,255,0.06);
+            background-color: var(--bg-surface);
+        }
+        .player-badge.active-turn::after {
+            content: '●';
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            font-size: 10px;
+            color: var(--accent-gold);
+            animation: pulse 1s infinite alternate;
+        }
+
+        @keyframes pulse {
+            from { opacity: 0.3; } to { opacity: 1; }
+        }
+
+        .player-badge .name {
+            font-size: 14px;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .player-badge .score {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        /* Central Game Board */
+        .game-board {
+            background-color: var(--bg-panel);
+            border-radius: 20px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            flex-grow: 1;
+            border: 1px solid rgba(255,255,255,0.03);
+        }
+
+        .section-title {
+            font-size: 12px;
+            color: var(--text-secondary);
+            letter-spacing: 0.08em;
+            margin-bottom: 8px;
+        }
+
+        /* Cards Layout */
+        .hand-container {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            min-height: 120px;
+            align-items: center;
+        }
+
+        .card {
+            width: 80px;
+            height: 116px;
+            background-color: var(--card-white);
+            color: #111111;
+            border-radius: 12px;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 32px;
+            font-weight: bold;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.4);
+            transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), border-color 0.2s;
+            border: 2px solid transparent;
+        }
+
+        .card.selected {
+            transform: translateY(-10px);
+            border-color: var(--accent-gold);
+        }
+
+        .card.masked {
+            background: linear-gradient(135deg, #1f1f1f 25%, #2a2a2a 25%, #2a2a2a 50%, #1f1f1f 50%, #1f1f1f 75%, #2a2a2a 75%, #2a2a2a 100%);
+            background-size: 20px 20px;
+            color: transparent;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .card.masked-team-A {
+            background: repeating-linear-gradient(45deg, #3a1118, #3a1118 10px, #1a0508 10px, #1a0508 20px);
+        }
+
+        .card.masked-team-B {
+            background: repeating-linear-gradient(45deg, #0b333a, #0b333a 10px, #031518 10px, #031518 20px);
+        }
+
+        .card-corner {
+            position: absolute;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .card-corner.top-left { top: 6px; left: 8px; }
+        .card-corner.bottom-right { bottom: 6px; right: 8px; transform: rotate(180deg); }
+
+        /* Suit Deduction Grid */
+        .suit-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+        }
+
+        .suit-btn {
+            background-color: var(--bg-surface);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 12px;
+            height: 54px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 20px;
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: var(--transition-smooth);
+        }
+
+        .suit-btn:active {
+            transform: scale(0.95);
+        }
+
+        .suit-btn.disabled {
+            opacity: 0.15;
+            pointer-events: none;
+            text-decoration: line-through;
+        }
+
+        /* Cemetery Logs */
+        .cemetery-view {
+            background-color: rgba(0,0,0,0.2);
+            border-radius: 12px;
+            padding: 12px;
+            min-height: 48px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .cemetery-token {
+            background-color: var(--bg-surface);
+            padding: 4px 8px;
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        /* Alert Overlay system */
+        .flash-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(0,0,0,0.85);
+            z-index: 1000;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            padding: 30px;
+            backdrop-filter: blur(4px);
+        }
+
+        .flash-box {
+            background-color: var(--bg-panel);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 20px;
+            padding: 24px;
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        @keyframes popIn {
+            from { transform: scale(0.9); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .flash-title {
+            font-size: 20px;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+
+        .flash-desc {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+
+        /* Utility Footer info */
+        .footer-branding {
+            text-align: center;
+            font-size: 10px;
+            letter-spacing: 0.2em;
+            color: rgba(255,255,255,0.15);
+            margin-top: auto;
+            padding-top: 20px;
+            text-transform: uppercase;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- LOBBY INITIALIZATION SCREEN -->
+    <div id="screen-lobby" class="screen active">
+        <div style="text-align: center; margin-top: 40px; margin-bottom: 40px;">
+            <h1 style="font-size: 36px; letter-spacing: 4px;">A C M A</h1>
+            <p style="font-size: 11px; color: var(--text-secondary); letter-spacing: 0.3em; margin-top: 4px;">Deduction Core Prototype</p>
+        </div>
+
+        <div class="game-board" style="flex-grow: 0;">
+            <div class="input-group">
+                <label>Your Agent Codename</label>
+                <input type="text" id="input-username" class="input-field" placeholder="e.g. Vesper" autocomplete="off">
+            </div>
+
+            <div class="input-group">
+                <label>Room Identifier (4 Chars)</label>
+                <input type="text" id="input-room" class="input-field" placeholder="e.g. K9X2" maxlength="4" style="text-transform: uppercase; font-family: monospace; letter-spacing: 2px;">
+            </div>
+
+            <div class="input-group">
+                <label>Select Team Affiliation</label>
+                <div class="toggle-group" id="lobby-team-toggle">
+                    <div class="toggle-opt active" data-team="A">Team Crimson (A)</div>
+                    <div class="toggle-opt" data-team="B">Team Cyan (B)</div>
+                </div>
+            </div>
+
+            <button id="btn-join" class="btn">Connect Sync Matrix</button>
+        </div>
+        <div class="footer-branding">Secure Local Node Protocol</div>
+    </div>
+
+    <!-- MAIN GAME ENVIRONMENT -->
+    <div id="screen-game" class="screen">
+        <!-- Status Header info -->
+        <div class="status-header">
+            <div>
+                <div style="font-size: 10px; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 0.05em;">Active Room</div>
+                <div id="display-room-id" class="room-tag">----</div>
+            </div>
+            <div style="text-align: right;">
+                <div style="font-size: 10px; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 0.05em;">Deck Remainder</div>
+                <div id="display-deck-count" style="font-weight: bold; font-family: monospace; font-size: 16px;">--</div>
+            </div>
+        </div>
+
+        <!-- 4-Player Status Grid -->
+        <div class="player-status-grid" id="player-grid">
+            <div class="player-badge" id="p-slot-0"><div class="name">Waiting...</div><div class="score">Rating: --</div></div>
+            <div class="player-badge" id="p-slot-1"><div class="name">Waiting...</div><div class="score">Rating: --</div></div>
+            <div class="player-badge" id="p-slot-2"><div class="name">Waiting...</div><div class="score">Rating: --</div></div>
+            <div class="player-badge" id="p-slot-3"><div class="name">Waiting...</div><div class="score">Rating: --</div></div>
+        </div>
+
+        <!-- Central Matrix Interaction area -->
+        <div class="game-board">
+            <div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span class="section-title" id="hand-title-label">Team Hand Registry</span>
+                    <button id="btn-toggle-mask" class="btn btn-secondary" style="width: auto; padding: 6px 12px; font-size: 11px; border-radius: 8px;">Reveal Hand</button>
+                </div>
+                <div class="hand-container" id="hand-wrapper">
+                    <!-- Dynamic rendering of cards -->
+                </div>
+            </div>
+
+            <div>
+                <span class="section-title">Action Matrix Execution</span>
+                <button id="btn-reveal-action" class="btn btn-secondary" style="margin-bottom: 12px;">Discard & Draw Replacement (+10)</button>
+            </div>
+
+            <div>
+                <span class="section-title">Vector Suit Deduction Hub</span>
+                <div class="suit-grid" id="suit-buttons-container">
+                    <div class="suit-btn" data-suit="♠">♠</div>
+                    <div class="suit-btn" data-suit="♥">♥</div>
+                    <div class="suit-btn" data-suit="♦">♦</div>
+                    <div class="suit-btn" data-suit="♣">♣</div>
+                    <div class="suit-btn" data-suit="👿">👿</div>
+                </div>
+            </div>
+
+            <div>
+                <span class="section-title">Cemetery Array Registry</span>
+                <div class="cemetery-view" id="cemetery-container">Empty</div>
+            </div>
+        </div>
+
+        <!-- Host Strategy Controls -->
+        <div id="host-controls" style="margin-top: 16px; display: none; flex-direction: column; gap: 10px;">
+            <button id="btn-equalize" class="btn btn-secondary" style="border-color: rgba(255,215,0,0.3); color: var(--accent-gold);">Equalize & Rebalance Matrix</button>
+        </div>
+
+        <div class="footer-branding">ACMA Engine Prototype v1.0</div>
+    </div>
+
+    <!-- NOTIFICATION MODAL SYSTEM -->
+    <div class="flash-overlay" id="flash-modal">
+        <div class="flash-box">
+            <div class="flash-title" id="flash-title">System Alert</div>
+            <div class="flash-desc" id="flash-desc">Message content placeholder.</div>
+            <button id="flash-close-btn" class="btn">Dismiss</button>
+        </div>
+    </div>
+
+    <!-- SCRIPT ARCHITECTURE LOGIC -->
+    <script>
+        // Global client architecture variables
+        let socket;
+        let localPlayerId = localStorage.getItem('acma_local_player_id') || 'p_' + Math.random().toString(36).substr(2, 9);
+        localStorage.setItem('acma_local_player_id', localPlayerId);
+
+        let currentRoom = '';
+        let localTeam = 'A';
+        let screenMask = true; // Local client visibility mask isolation
+        let localSelectedHandIndices = []; // Client-side touch isolation
+
+        // Game baseline data structures
+        let state = {
+            room: '',
+            gameMode: 'NORMAL',
+            deck: [],
+            targetCard: null,
+            handA: [],
+            handB: [],
+            cemetery: [],
+            deactivatedSuits: [],
+            rotation: [], // Order of player IDs
+            players: {}, // Map of id -> {id, name, team, points, rating, isHost}
+            turnIndex: 0
+        };
+
+        // UI Element mappings
+        const lobbyScreen = document.getElementById('screen-lobby');
+        const gameScreen = document.getElementById('screen-game');
+        const btnJoin = document.getElementById('btn-join');
+        const btnToggleMask = document.getElementById('btn-toggle-mask');
+        const btnRevealAction = document.getElementById('btn-reveal-action');
+        const btnEqualize = document.getElementById('btn-equalize');
+        const suitGrid = document.getElementById('suit-buttons-container');
+        const handWrapper = document.getElementById('hand-wrapper');
+        const cemeteryContainer = document.getElementById('cemetery-container');
+        const playerGrid = document.getElementById('player-grid');
+        const hostControls = document.getElementById('host-controls');
+
+        // Initial setup
+        document.querySelectorAll('#lobby-team-toggle .toggle-opt').forEach(opt => {
+            opt.addEventListener('click', () => {
+                document.querySelectorAll('#lobby-team-toggle .toggle-opt').forEach(o => o.classList.remove('active'));
+                opt.classList.add('active');
+                localTeam = opt.getAttribute('data-team');
+            });
+        });
+
+        btnJoin.addEventListener('click', initializeConnection);
+        btnToggleMask.addEventListener('click', toggleLocalHandMask);
+        btnRevealAction.addEventListener('click', executeRevealAction);
+        btnEqualize.addEventListener('click', executeEqualizeRebalance);
+
+        document.querySelectorAll('.suit-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                executeSuitGuess(btn.getAttribute('data-suit'));
+            });
+        });
+
+        document.getElementById('flash-close-btn').addEventListener('click', hideAlert);
+
+        // Auto re-entry protection verification checks
+        window.addEventListener('load', () => {
+            const savedRoom = localStorage.getItem('acma_active_room_id');
+            if (savedRoom) {
+                const savedState = localStorage.getItem('acma_room_' + savedRoom);
+                if (savedState) {
+                    try {
+                        const parsed = JSON.parse(savedState);
+                        if (parsed.players && parsed.players[localPlayerId]) {
+                            // Hot-swap player directly back into the active game
+                            document.getElementById('input-username').value = parsed.players[localPlayerId].name;
+                            document.getElementById('input-room').value = savedRoom;
+                            localTeam = parsed.players[localPlayerId].team;
+                            currentRoom = savedRoom;
+                            initializeConnection();
+                        }
+                    } catch(e) {
+                        console.error("Re-entry failure parsing storage context:", e);
+                    }
+                }
+            }
+        });
+
+        // Network synchronization pipeline using public shared Piesocket infrastructure
+        function initializeConnection() {
+            const username = document.getElementById('input-username').value.trim();
+            const roomInput = document.getElementById('input-room').value.trim().toUpperCase();
+
+            if (!username || !roomInput) {
+                showAlert("Access Denied", "Please populate both your unique agent codename and target room ID vector.");
+                return;
+            }
+
+            currentRoom = roomInput;
+            localStorage.setItem('acma_active_room_id', currentRoom);
+
+            // Establish standard client WebSocket tunnel connection architecture
+            const wsUrl = "wss://api.piesocket.com/v3/demo?api_key=VCXCEuvYube6tgDo148wZ2Pp39369A8sESmYswPM";
+            socket = new WebSocket(wsUrl);
+
+            socket.onopen = () => {
+                // Send initial declaration message to verify placement
+                sendNetworkPacket({
+                    type: 'JOIN',
+                    roomId: currentRoom,
+                    player: {
+                        id: localPlayerId,
+                        name: username,
+                        team: localTeam,
+                        points: 0,
+                        rating: 100,
+                        isHost: false
+                    }
+                });
+            };
+
+            socket.onmessage = (event) => {
+                try {
+                    const packet = JSON.parse(event.data);
+                    if (packet.roomId !== currentRoom) return; // Discard packets from foreign rooms
+
+                    handleNetworkPacket(packet);
+                } catch (err) {
+                    console.error("Packet processing fault detected:", err);
+                }
+            };
+
+            socket.onerror = () => {
+                showAlert("Network Drop", "Sync matrix connection error. Retrying tunnel pipeline setup...");
+            };
+
+            // Switch layout screens instantly
+            lobbyScreen.classList.remove('active');
+            gameScreen.classList.add('active');
+            document.getElementById('display-room-id').innerText = currentRoom;
+        }
+
+        function sendNetworkPacket(data) {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify(data));
+            }
+        }
+
+        // Central packet router processing loops
+        function handleNetworkPacket(packet) {
+            switch(packet.type) {
+                case 'JOIN':
+                    // If host, welcome the player and share authoritative state blueprint data
+                    if (Object.keys(state.players).length === 0 || state.players[localPlayerId]?.isHost) {
+                        if (!state.players[localPlayerId]) {
+                            // Assign host role dynamically if this tab initialized first
+                            packet.player.isHost = true;
+                        }
+                        if (!state.players[packet.player.id]) {
+                            state.players[packet.player.id] = packet.player;
+                        }
+                        // Re-verify host permissions locally
+                        if (packet.player.id === localPlayerId && packet.player.isHost) {
+                            state.players[localPlayerId].isHost = true;
+                        }
+                        
+                        // If room has exactly 4 players now, spin up a brand new round deck architecture
+                        if (Object.keys(state.players).length === 4 && state.deck.length === 0) {
+                            initializeNewRoundMatrix();
+                        } else {
+                            broadcastAuthoritativeState();
+                        }
+                    }
+                    break;
+
+                case 'SYNC':
+                    state = packet.gameState;
+                    updateUserInterfaceView();
+                    // Save payload snapshot into localStorage vault
+                    localStorage.setItem('acma_room_' + currentRoom, JSON.stringify(state));
+                    break;
+            }
+        }
+
+        function broadcastAuthoritativeState() {
+            sendNetworkPacket({
+                type: 'SYNC',
+                roomId: currentRoom,
+                gameState: state
+            });
+        }
+
+        // Deck math & initialization routine functions
+        function initializeNewRoundMatrix() {
+            // Build absolute 15 card array matching documentation metrics
+            const suits = ['♠', '♥', '♦', '♣', '👿'];
+            let fullDeck = [];
+            suits.forEach(s => {
+                fullDeck.push({suit: s}, {suit: s}, {suit: s});
+            });
+
+            // Fisher-Yates pure randomization shuffle execution loop
+            for (let i = fullDeck.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [fullDeck[i], fullDeck[j]] = [fullDeck[j], fullDeck[i]];
+            }
+
+            state.deck = fullDeck;
+            state.targetCard = state.deck.pop(); // Pop secret winner card vector
+
+            // Allocate 3 universal cards to Team A and Team B pointer slots
+            state.handA = [state.deck.pop(), state.deck.pop(), state.deck.pop()];
+            state.handB = [state.deck.pop(), state.deck.pop(), state.deck.pop()];
+
+            state.cemetery = [];
+            state.deactivatedSuits = [];
+
+            // Setup rotation mechanics: Team A P1 -> Team B P1 -> Team A P2 -> Team B P2
+            const playersArr = Object.values(state.players);
+            const teamAPlayers = playersArr.filter(p => p.team === 'A');
+            const teamBPlayers = playersArr.filter(p => p.team === 'B');
+
+            state.rotation = [];
+            if(teamAPlayers[0]) state.rotation.push(teamAPlayers[0].id);
+            if(teamBPlayers[0]) state.rotation.push(teamBPlayers[0].id);
+            if(teamAPlayers[1]) state.rotation.push(teamAPlayers[1].id);
+            if(teamBPlayers[1]) state.rotation.push(teamBPlayers[1].id);
+
+            // Fill backfilled vacancies if room has misaligned structures
+            while(state.rotation.length < 4 && playersArr.length > 0) {
+                for(let p of playersArr) {
+                    if(!state.rotation.includes(p.id) && state.rotation.length < 4) state.rotation.push(p.id);
+                }
+            }
+
+            state.turnIndex = 0;
+            broadcastAuthoritativeState();
+        }
+
+        // Localized interactive actions
+        function toggleLocalHandMask() {
+            screenMask = !screenMask;
+            btnToggleMask.innerText = screenMask ? "Reveal Hand" : "Mask Hand";
+            updateUserInterfaceView();
+        }
+
+        function selectCardLocal(index) {
+            // Absolute touch privacy shield rule: updates local array storage layer only
+            const pos = localSelectedHandIndices.indexOf(index);
+            if (pos > -1) {
+                localSelectedHandIndices.splice(pos, 1);
+            } else {
+                localSelectedHandIndices.push(index);
+            }
+            updateUserInterfaceView();
+        }
+
+        function executeRevealAction() {
+            if (!isMyTurnToMove()) {
+                showAlert("Access Blocked", "Please preserve total physical silence. It is not your turn sequence.");
+                return;
+            }
+            if (localSelectedHandIndices.length === 0) {
+                showAlert("Action Required", "Touch 1, 2, or 3 cards in your team hand matrix to discard.");
+                return;
+            }
+
+            const activePlayerId = state.rotation[state.turnIndex];
+            const activeTeam = state.players[activePlayerId].team;
+            let currentHand = activeTeam === 'A' ? state.handA : state.handB;
+
+            // Sort indices in descending order to avoid splice array shift bugs
+            localSelectedHandIndices.sort((a,b) => b - a);
+
+            localSelectedHandIndices.forEach(idx => {
+                if (currentHand[idx]) {
+                    state.cemetery.push(currentHand[idx]); // Log to universal cemetery array
+                    if (state.deck.length > 0) {
+                        currentHand[idx] = state.deck.pop(); // Populate vacancy instantly from deck
+                    } else {
+                        currentHand.splice(idx, 1);
+                    }
+                }
+            });
+
+            // Adjust scoring data structures (+10 points)
+            state.players[localPlayerId].points += 10;
+
+            // Wipe out local selection array metrics
+            localSelectedHandIndices = [];
+            passTurnRotation();
+        }
+
+        function executeSuitGuess(suitSymbol) {
+            if (!isMyTurnToMove()) {
+                showAlert("Access Blocked", "Deduction choice blocked out during foreign turn cycles.");
+                return;
+            }
+
+            if (state.targetCard.suit === suitSymbol) {
+                // Winning Condition Met
+                const activePlayerId = state.rotation[state.turnIndex];
+                const winningTeam = state.players[activePlayerId].team;
+
+                showAlert("Victory Achieved", `Suit ${suitSymbol} matched target vector! Both teammates receive +50 allocation points.`);
+
+                // Update points architecture for teammates
+                Object.values(state.players).forEach(p => {
+                    if (p.team === winningTeam) {
+                        p.points += 50;
+                    }
+                });
+
+                concludeMatchCycle();
+            } else {
+                // Incorrect Penalty logic
+                showAlert("Wrong Answer", `Deduction vector failed. Suit ${suitSymbol} disabled.`);
+                state.deactivatedSuits.push(suitSymbol);
+                state.players[localPlayerId].points -= 30; // Deduct 30 from attacker directly
+                passTurnRotation();
+            }
+        }
+
+        function passTurnRotation() {
+            state.turnIndex = (state.turnIndex + 1) % state.rotation.length;
+            broadcastAuthoritativeState();
+        }
+
+        function concludeMatchCycle() {
+            // Apply Recency Weight Formula logic: newRating = (pointsThisRound * 0.7) + (previousRating * 0.3)
+            Object.values(state.players).forEach(p => {
+                p.rating = Math.round((p.points * 0.7) + (p.rating * 0.3));
+                p.points = 0; // Wipe baseline score cleanly for sequential matching loops
+            });
+
+            // Cycle state back cleanly to initial point
+            initializeNewRoundMatrix();
+        }
+
+        function executeEqualizeRebalance() {
+            if (!state.players[localPlayerId]?.isHost) return;
+
+            // 1. Sort all connected players by rating metrics from high to low
+            let sortedPlayers = Object.values(state.players).sort((a,b) => b.rating - a.rating);
+
+            // 2. Pair High/Low evenly to eliminate standard structural stacking
+            // Rank 1 and Rank 4 go to Team A
+            if(sortedPlayers[0]) state.players[sortedPlayers[0].id].team = 'A';
+            if(sortedPlayers[3]) state.players[sortedPlayers[3].id].team = 'A';
+            // Rank 2 and Rank 3 go to Team B
+            if(sortedPlayers[1]) state.players[sortedPlayers[1].id].team = 'B';
+            if(sortedPlayers[2]) state.players[sortedPlayers[2].id].team = 'B';
+
+            // Clear card slots and reset the round framework completely
+            state.deck = [];
+            state.handA = [];
+            state.handB = [];
+            
+            initializeNewRoundMatrix();
+        }
+
+        // GUI and view synchronization updating methods
+        function updateUserInterfaceView() {
+            if (!state || !state.rotation) return;
+
+            const activePlayerId = state.rotation[state.turnIndex];
+            
+            // Toggle configuration adjustments if user profile matches room host privileges
+            if (state.players[localPlayerId]?.isHost) {
+                hostControls.style.display = 'flex';
+            } else {
+                hostControls.style.display = 'none';
+            }
+
+            // Sync the 4-player display badge panels
+            for (let i = 0; i < 4; i++) {
+                const slot = document.getElementById(`p-slot-${i}`);
+                const pId = state.rotation[i];
+                if (pId && state.players[pId]) {
+                    const p = state.players[pId];
+                    slot.className = `player-badge team-${p.team} ${pId === activePlayerId ? 'active-turn' : ''}`;
+                    slot.innerHTML = `
+                        <div class="name">${p.name} ${p.id === localPlayerId ? '(You)' : ''}</div>
+                        <div class="score">Rating: ${p.rating} | R: ${p.points}</div>
+                    `;
+                } else {
+                    slot.className = 'player-badge';
+                    slot.innerHTML = '<div class="name">Awaiting Sync...</div><div class="score">Rating: --</div>';
+                }
+            }
+
+            // Figure out active team status constraints
+            const localPlayerObj = state.players[localPlayerId];
+            const myTeam = localPlayerObj ? localPlayerObj.team : 'A';
+            const targetHandArr = myTeam === 'A' ? state.handA : state.handB;
+
+            document.getElementById('hand-title-label').innerText = `Team ${myTeam} Hand Inventory`;
+            document.getElementById('display-deck-count').innerText = state.deck ? state.deck.length : '0';
+
+            // Empty old card DOM assets and reconstruct
+            handWrapper.innerHTML = '';
+            targetHandArr.forEach((card, idx) => {
+                const cardEl = document.createElement('div');
+                
+                if (screenMask) {
+                    // Privacy mask design setup applied to prevent cross-screen reading
+                    cardEl.className = `card masked masked-team-${myTeam}`;
+                } else {
+                    cardEl.className = `card ${localSelectedHandIndices.includes(idx) ? 'selected' : ''}`;
+                    cardEl.innerHTML = `
+                        <div class="card-corner top-left">${card.suit}</div>
+                        <div>${card.suit}</div>
+                        <div class="card-corner bottom-right">${card.suit}</div>
+                    `;
+                }
+
+                // Privacy release trigger rule verification setup
+                cardEl.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    selectCardLocal(idx);
+                });
+                cardEl.addEventListener('click', () => {
+                    selectCardLocal(idx);
+                });
+
+                handWrapper.appendChild(cardEl);
+            });
+
+            // Synchronize suit deduction grid button items
+            document.querySelectorAll('.suit-btn').forEach(btn => {
+                const s = btn.getAttribute('data-suit');
+                if (state.deactivatedSuits && state.deactivatedSuits.includes(s)) {
+                    btn.classList.add('disabled');
+                } else {
+                    btn.classList.remove('disabled');
+                }
+            });
+
+            // Repopulate cemetery content tracker logs
+            cemeteryContainer.innerHTML = '';
+            if (state.cemetery && state.cemetery.length > 0) {
+                state.cemetery.forEach(c => {
+                    const token = document.createElement('span');
+                    token.className = 'cemetery-token';
+                    token.innerText = c.suit;
+                    cemeteryContainer.appendChild(token);
+                });
+            } else {
+                cemeteryContainer.innerText = 'Empty Matrix Log';
+            }
+        }
+
+        function isMyTurnToMove() {
+            if (!state.rotation || state.rotation.length === 0) return false;
+            return state.rotation[state.turnIndex] === localPlayerId;
+        }
+
+        // Alert dialog modal control wrappers
+        function showAlert(title, description) {
+            document.getElementById('flash-title').innerText = title;
+            document.getElementById('flash-desc').innerText = description;
+            document.getElementById('flash-modal').style.display = 'flex';
+        }
+
+        function hideAlert() {
+            document.getElementById('flash-modal').style.display = 'none';
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0a0b10">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="description" content="ACMA Matrix: A high-stakes 2v2 tactical card deduction engine.">
+  <title>ACMA MATRIX // 2v2 Tactical Deduction</title>
+
+  <!-- Typography: Luxury Serif & Futuristic Clean Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Sound & Haptic Ambient SVG Symbols Definition -->
+  <svg style="display: none;" xmlns="http://www.w3.org/2000/svg">
+    <!-- Suit: Spades -->
+    <symbol id="suit-spades" viewBox="0 0 100 100">
+      <path fill="currentColor" d="M50,10 C45,28 20,45 20,62 C20,74 30,82 42,80 C46.5,79.2 49,75 49,75 C49,75 45.5,86 38,90 L62,90 C54.5,86 51,75 51,75 C51,75 53.5,79.2 58,80 C70,82 80,74 80,62 C80,45 55,28 50,10 Z"/>
+    </symbol>
+
+    <!-- Suit: Hearts -->
+    <symbol id="suit-hearts" viewBox="0 0 100 100">
+      <path fill="currentColor" d="M50,88 C46,84 14,56 14,35 C14,20 25,12 37,12 C44,12 48,16 50,20 C52,16 56,12 63,12 C75,12 86,20 86,35 C86,56 54,84 50,88 Z"/>
+    </symbol>
+
+    <!-- Suit: Diamonds -->
+    <symbol id="suit-diamonds" viewBox="0 0 100 100">
+      <path fill="currentColor" d="M50,8 L85,50 L50,92 L15,50 Z"/>
+    </symbol>
+
+    <!-- Suit: Clubs -->
+    <symbol id="suit-clubs" viewBox="0 0 100 100">
+      <path fill="currentColor" d="M50,12 C42,12 36,18 36,26 C36,31 38.5,35 42,37.5 C34,36.5 24,42 24,52 C24,61 31.5,67 40,66 C42.5,65.7 45,64.5 47,63 C46.5,69 44,83 37,88 L63,88 C56,83 53.5,69 53,63 C55,64.5 57.5,65.7 60,66 C68.5,67 76,61 76,52 C76,42 66,36.5 58,37.5 C61.5,35 64,31 64,26 C64,18 58,12 50,12 Z"/>
+    </symbol>
+
+    <!-- Suit: Demon (👿 Luxury Oni/Cyber-Devil) -->
+    <symbol id="suit-demon" viewBox="0 0 100 100">
+      <g fill="currentColor">
+        <!-- Horns -->
+        <path d="M22,14 C27,24 28,38 31,44 C25,41 18,34 16,22 C15,16 18,12 22,14 Z"/>
+        <path d="M78,14 C73,24 72,38 69,44 C75,41 82,34 84,22 C85,16 82,12 78,14 Z"/>
+        <!-- Face Crown & Cheeks -->
+        <path d="M50,22 C34,22 28,34 26,48 C24,62 30,78 40,86 C44,89 48,90 50,90 C52,90 56,89 60,86 C70,78 76,62 74,48 C72,34 66,22 50,22 Z M50,30 C62,30 67,39 67,50 C67,61 63,73 50,82 C37,73 33,61 33,50 C33,39 38,30 50,30 Z"/>
+        <!-- Fierce Eyes -->
+        <polygon points="36,46 47,52 38,55"/>
+        <polygon points="64,46 53,52 62,55"/>
+        <!-- Fangs / Snarl -->
+        <polygon points="44,67 47,62 50,65 53,62 56,67 50,70"/>
+        <!-- Forehead Gem -->
+        <polygon points="50,34 54,40 50,46 46,40"/>
+      </g>
+    </symbol>
+  </svg>
+
+  <!-- Mobile App Wrapper -->
+  <div id="app" class="app-root">
+    
+    <!-- Ambient Dynamic Background -->
+    <div class="luxury-backdrop">
+      <div class="radial-glow glow-gold"></div>
+      <div class="radial-glow glow-crimson"></div>
+      <div class="mesh-overlay"></div>
+    </div>
+
+    <!-- Notification / Toast Bar -->
+    <div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+    <!-- ============================================================ -->
+    <!-- SCREEN 1: LOBBY & ONBOARDING -->
+    <!-- ============================================================ -->
+    <section id="screen-lobby" class="screen screen-lobby active">
+      <header class="lobby-brand">
+        <div class="brand-crest">
+          <svg class="crest-icon" viewBox="0 0 100 100"><use href="#suit-demon"></use></svg>
+        </div>
+        <div class="brand-subtitle">SYNAPSE COLLECTIVE</div>
+        <h1 class="brand-title">ACMA MATRIX</h1>
+        <p class="brand-tagline">2v2 Collaborative Deduction Engine</p>
+      </header>
+
+      <div class="lobby-card glass-panel">
+        <div class="lobby-input-group">
+          <label for="player-name-input" class="input-label">CODENAME / ALIAS</label>
+          <div class="input-wrapper">
+            <input type="text" id="player-name-input" maxlength="12" placeholder="e.g. Cipher, Vesper..." autocomplete="off" spellcheck="false">
+          </div>
+        </div>
+
+        <div class="lobby-actions">
+          <button id="btn-create-room" class="btn btn-gold btn-luxury" type="button">
+            <span class="btn-shine"></span>
+            <span class="btn-icon">⚡</span>
+            <span class="btn-text">CREATE 2v2 ROOM</span>
+          </button>
+
+          <div class="divider-or"><span>OR JOIN ACTIVE ROOM</span></div>
+
+          <div class="join-box">
+            <input type="text" id="room-code-input" class="room-code-input" maxlength="4" placeholder="ROOM" autocomplete="off" autocapitalize="characters">
+            <button id="btn-join-room" class="btn btn-secondary" type="button">
+              <span>JOIN</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Quick Demo / Testing Bar for Instant Solo Auditing -->
+        <div class="quick-test-tray">
+          <button id="btn-quick-solo" class="btn-link" type="button">
+            <span>🎮 Instant Solo Practice & Test Loop (with 3 AI seats)</span>
+          </button>
+        </div>
+      </div>
+
+      <footer class="lobby-footer">
+        <div class="status-indicator">
+          <span class="status-dot"></span>
+          <span id="ws-network-status">Network: WebSocket Standby</span>
+        </div>
+        <button id="btn-open-rules-lobby" class="btn-text-link">Matrix Dossier & Rules</button>
+      </footer>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- SCREEN 2: ROOM SEAT ALLOCATION & PRE-GAME STAGING -->
+    <!-- ============================================================ -->
+    <section id="screen-room" class="screen screen-room">
+      <header class="room-header glass-bar">
+        <button id="btn-leave-room" class="icon-btn" title="Leave Room">✕</button>
+        <div class="room-info-pill">
+          <span class="room-label">ROOM</span>
+          <span id="display-room-code" class="room-code">----</span>
+          <button id="btn-copy-room" class="copy-pill" title="Copy Invite Link">🔗 COPY</button>
+        </div>
+        <div class="room-status-badge" id="room-ready-count">0/4 SEATED</div>
+      </header>
+
+      <main class="room-staging-grid">
+        <div class="staging-notice">
+          <h2>2v2 TEAM ASSIGNMENT</h2>
+          <p>Tap an open operative slot to claim your seat.</p>
+        </div>
+
+        <!-- Team Alpha (A) -->
+        <div class="team-staging-box team-a-box">
+          <div class="team-badge badge-a">
+            <span class="team-bullet">◆</span> TEAM ALPHA (A)
+          </div>
+          <div class="seat-pair">
+            <div class="seat-card glass-panel" data-team="A" data-slot="1" id="seat-A-1">
+              <div class="seat-tag">ALPHA 1 (First Move)</div>
+              <div class="seat-occupant">EMPTY SLOT</div>
+              <button class="btn btn-sm btn-seat-claim">CLAIM SEAT</button>
+            </div>
+            <div class="seat-card glass-panel" data-team="A" data-slot="2" id="seat-A-2">
+              <div class="seat-tag">ALPHA 2</div>
+              <div class="seat-occupant">EMPTY SLOT</div>
+              <button class="btn btn-sm btn-seat-claim">CLAIM SEAT</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Team Omega (B) -->
+        <div class="team-staging-box team-b-box">
+          <div class="team-badge badge-b">
+            <span class="team-bullet">◇</span> TEAM OMEGA (B)
+          </div>
+          <div class="seat-pair">
+            <div class="seat-card glass-panel" data-team="B" data-slot="1" id="seat-B-1">
+              <div class="seat-tag">OMEGA 1</div>
+              <div class="seat-occupant">EMPTY SLOT</div>
+              <button class="btn btn-sm btn-seat-claim">CLAIM SEAT</button>
+            </div>
+            <div class="seat-card glass-panel" data-team="B" data-slot="2" id="seat-B-2">
+              <div class="seat-tag">OMEGA 2</div>
+              <div class="seat-occupant">EMPTY SLOT</div>
+              <button class="btn btn-sm btn-seat-claim">CLAIM SEAT</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Staging Controls for Host / Solo Testing -->
+        <div class="staging-controls">
+          <button id="btn-fill-bots" class="btn btn-subtle" type="button">
+            🤖 Auto-Fill Open Slots with Bots
+          </button>
+          <button id="btn-start-game" class="btn btn-gold btn-luxury full-width" type="button" disabled>
+            <span class="btn-text">COMMENCE ROUND 1</span>
+          </button>
+        </div>
+      </main>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- SCREEN 3: ACTIVE MATCH ARENA -->
+    <!-- ============================================================ -->
+    <section id="screen-game" class="screen screen-game">
+      
+      <!-- Top Tactical HUD -->
+      <header class="game-hud glass-bar">
+        <div class="hud-left">
+          <div class="hud-room-tag">
+            <span class="dot-live"></span>
+            <span id="game-room-id-tag">K9X2</span>
+          </div>
+          <div class="hud-round-pill">
+            <span class="round-prefix">ROUND</span>
+            <span id="game-round-number" class="round-num">1</span>
+          </div>
+        </div>
+
+        <!-- Turn Track Ring -->
+        <div class="turn-rotation-tracker" id="turn-rotation-tracker">
+          <div class="turn-node node-a1" data-slot-id="A1" title="Team A Player 1">A1</div>
+          <span class="turn-arrow">›</span>
+          <div class="turn-node node-b1" data-slot-id="B1" title="Team B Player 1">B1</div>
+          <span class="turn-arrow">›</span>
+          <div class="turn-node node-a2" data-slot-id="A2" title="Team A Player 2">A2</div>
+          <span class="turn-arrow">›</span>
+          <div class="turn-node node-b2" data-slot-id="B2" title="Team B Player 2">B2</div>
+        </div>
+
+        <div class="hud-right">
+          <button id="btn-game-rules" class="hud-icon-btn" title="Deduction Matrix HUD">📊</button>
+          <button id="btn-sound-toggle" class="hud-icon-btn" title="Toggle Sound">🔊</button>
+          <button id="btn-exit-game" class="hud-icon-btn exit-btn" title="Exit Match">🚪</button>
+        </div>
+      </header>
+
+      <!-- Tactical Turn Banner -->
+      <div id="turn-announcement-banner" class="turn-announcement-banner">
+        <div class="turn-pulse-beacon"></div>
+        <div class="turn-banner-content">
+          <span id="turn-title-label" class="turn-title">ALPHA 1's TURN</span>
+          <span id="turn-sub-label" class="turn-subtitle">Choose: Reveal & Draw OR Submit Final Deduction</span>
+        </div>
+      </div>
+
+      <!-- Main Game Arena Board -->
+      <main class="arena-board">
+        
+        <!-- Center Sanctum: Target Vault & Deck Status -->
+        <div class="sanctum-row">
+          
+          <!-- Hidden Target Vault -->
+          <div class="target-vault-wrapper">
+            <div class="vault-label">CLASSIFIED TARGET</div>
+            <div class="card-slot vault-slot" id="target-vault-card">
+              <div class="luxury-card card-facedown vault-sealed" id="vault-card-inner">
+                <div class="card-foil-sheen"></div>
+                <div class="card-pattern"></div>
+                <div class="vault-emblem">
+                  <span class="vault-lock-icon">🔒</span>
+                  <span class="vault-lock-text">UNKNOWN</span>
+                </div>
+              </div>
+            </div>
+            <div class="vault-subtext">5 Suits • 1 Sealed</div>
+          </div>
+
+          <!-- Draw Pile & Metrics -->
+          <div class="deck-vault-wrapper">
+            <div class="vault-label">REMAINING DECK</div>
+            <div class="card-slot deck-slot" id="deck-draw-pile">
+              <div class="luxury-card card-facedown deck-stack">
+                <div class="card-pattern"></div>
+                <div class="deck-counter-badge" id="deck-count-badge">8</div>
+              </div>
+            </div>
+            <div class="vault-subtext">Draw Pile</div>
+          </div>
+
+        </div>
+
+        <!-- Public Cemetery Tray (Discard Log) -->
+        <section class="cemetery-tray glass-panel">
+          <div class="tray-header">
+            <div class="tray-title-group">
+              <span class="tray-icon">🪦</span>
+              <span class="tray-title">PUBLIC CEMETERY DISCARD</span>
+              <span class="cemetery-count" id="cemetery-count-pill">0 CARDS</span>
+            </div>
+            <!-- Live Suit Count Badges (Deduction Helpers) -->
+            <div class="suit-census" id="suit-census-chips">
+              <div class="suit-chip" data-suit="spades" title="Spades in Cemetery">♠ <span class="census-val">0/3</span></div>
+              <div class="suit-chip" data-suit="hearts" title="Hearts in Cemetery">♥ <span class="census-val">0/3</span></div>
+              <div class="suit-chip" data-suit="diamonds" title="Diamonds in Cemetery">♦ <span class="census-val">0/3</span></div>
+              <div class="suit-chip" data-suit="clubs" title="Clubs in Cemetery">♣ <span class="census-val">0/3</span></div>
+              <div class="suit-chip" data-suit="demon" title="Demon in Cemetery">👿 <span class="census-val">0/3</span></div>
+            </div>
+          </div>
+
+          <!-- Horizontal Scrollable Cards Cemetery River -->
+          <div class="cemetery-stream-wrapper">
+            <div class="cemetery-stream" id="cemetery-card-stream">
+              <div class="cemetery-empty-state">No cards revealed yet this round.</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Player's Team Shared Hand Area -->
+        <section class="team-hand-section">
+          <div class="hand-header">
+            <div class="hand-identity">
+              <span class="hand-team-badge" id="player-hand-team-badge">YOUR TEAM HAND (SHARED)</span>
+              <span class="hand-sync-pill">3 Cards Universally Synced</span>
+            </div>
+            
+            <!-- Hand Masking / Screen-Peeking Shield -->
+            <button id="btn-privacy-visor" class="privacy-visor-btn" type="button" title="Shield your screen from onlookers">
+              <span class="visor-icon">👁️</span>
+              <span class="visor-text">HIDE HAND</span>
+            </button>
+          </div>
+
+          <!-- 3-Card Shared Hand Dock -->
+          <div class="hand-card-dock" id="hand-card-dock">
+            <!-- 3 Dynamic Cards injected here -->
+            <div class="hand-placeholder">Loading team encrypted hand...</div>
+          </div>
+
+          <!-- Touch Hint & Multi-Selection Counter -->
+          <div class="hand-action-hint" id="hand-selection-counter">
+            Tap 1 to 3 cards to Reveal & Draw replacements
+          </div>
+        </section>
+
+      </main>
+
+      <!-- Action Console Footer -->
+      <footer class="game-action-bar glass-bar">
+        <div class="action-buttons-wrapper">
+          <!-- Action 1: Reveal & Draw -->
+          <button id="btn-action-reveal" class="btn btn-action btn-reveal" type="button" disabled>
+            <span class="btn-main-label">REVEAL & DRAW</span>
+            <span class="btn-sub-label" id="reveal-sublabel">(Select 1-3 Cards)</span>
+          </button>
+
+          <!-- Action 2: Submit Guess -->
+          <button id="btn-action-guess" class="btn btn-action btn-guess" type="button" disabled>
+            <span class="btn-main-label">SUBMIT GUESS</span>
+            <span class="btn-sub-label">Deduce Sealed Target</span>
+          </button>
+        </div>
+      </footer>
+
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- MODAL 1: SUBMIT GUESS MODAL (THE TARGET DEDUCTION DIAL) -->
+    <!-- ============================================================ -->
+    <div id="modal-guess" class="modal-backdrop">
+      <div class="modal-sheet glass-panel">
+        <div class="modal-sheet-header">
+          <div class="modal-sheet-title">FORMAL TARGET DEDUCTION</div>
+          <button class="modal-close-btn" id="btn-close-guess-modal">✕</button>
+        </div>
+        
+        <p class="modal-instruction">
+          Select the suit vector of the hidden classified card.
+          <br><strong class="gold-text">Success:</strong> Round won instantly.
+          <br><strong class="crimson-text">Error:</strong> That suit is barred for the rest of the round.
+        </p>
+
+        <!-- 5 Suit Deduction Cards Grid -->
+        <div class="suit-guess-grid">
+          <!-- Spades -->
+          <button class="suit-guess-card" data-suit="spades" type="button">
+            <svg class="suit-card-svg suit-color-spades"><use href="#suit-spades"></use></svg>
+            <span class="suit-name">SPADES</span>
+            <span class="suit-status-tag" id="status-tag-spades">AVAILABLE</span>
+          </button>
+
+          <!-- Hearts -->
+          <button class="suit-guess-card" data-suit="hearts" type="button">
+            <svg class="suit-card-svg suit-color-hearts"><use href="#suit-hearts"></use></svg>
+            <span class="suit-name">HEARTS</span>
+            <span class="suit-status-tag" id="status-tag-hearts">AVAILABLE</span>
+          </button>
+
+          <!-- Diamonds -->
+          <button class="suit-guess-card" data-suit="diamonds" type="button">
+            <svg class="suit-card-svg suit-color-diamonds"><use href="#suit-diamonds"></use></svg>
+            <span class="suit-name">DIAMONDS</span>
+            <span class="suit-status-tag" id="status-tag-diamonds">AVAILABLE</span>
+          </button>
+
+          <!-- Clubs -->
+          <button class="suit-guess-card" data-suit="clubs" type="button">
+            <svg class="suit-card-svg suit-color-clubs"><use href="#suit-clubs"></use></svg>
+            <span class="suit-name">CLUBS</span>
+            <span class="suit-status-tag" id="status-tag-clubs">AVAILABLE</span>
+          </button>
+
+          <!-- Demon -->
+          <button class="suit-guess-card suit-card-demon" data-suit="demon" type="button">
+            <svg class="suit-card-svg suit-color-demon"><use href="#suit-demon"></use></svg>
+            <span class="suit-name">DEMON</span>
+            <span class="suit-status-tag" id="status-tag-demon">AVAILABLE</span>
+          </button>
+        </div>
+
+        <div class="modal-sheet-actions">
+          <button id="btn-confirm-guess" class="btn btn-gold btn-luxury full-width" type="button" disabled>
+            CONFIRM FINAL DEDUCTION
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- MODAL 2: ROUND OVER / VICTORY CELEBRATION & EQUALIZATION -->
+    <!-- ============================================================ -->
+    <div id="modal-round-over" class="modal-backdrop">
+      <div class="modal-card-center glass-panel">
+        <div class="victory-crown-icon" id="round-victory-icon">🏆</div>
+        <div class="victory-subtitle" id="round-victory-subtitle">ROUND CONCLUDED</div>
+        <h2 class="victory-title" id="round-victory-title">TEAM ALPHA WINS!</h2>
+
+        <!-- Revealed Target Card Showcase -->
+        <div class="target-reveal-stage">
+          <div class="reveal-label">THE SEALED TARGET CARD WAS:</div>
+          <div class="revealed-card-frame" id="round-revealed-card-frame">
+            <!-- Dynamic revealed card rendered here -->
+          </div>
+        </div>
+
+        <!-- Secret Rating Performance Engine (Silent Computation) -->
+        <div class="host-control-box" id="host-round-controls">
+          <div class="host-badge">HOST MATRIX CONTROLLER</div>
+          <p class="host-notice">The ledger is sealed. Keep the table, or rebalance the matrix.</p>
+
+          <div class="host-button-stack">
+            <!-- Normal Next Round (Keeps current teams) -->
+            <button id="btn-next-round-standard" class="btn btn-secondary full-width" type="button">
+              Continue With Current Teams (Round Next)
+            </button>
+
+            <!-- MANDATORY HOST REBALANCE MATRIX BUTTON -->
+            <button id="btn-equalize-rebalance" class="btn btn-gold btn-luxury full-width" type="button">
+              <span class="btn-shine"></span>
+              <span class="btn-icon">⚡</span>
+              <span class="btn-text">EQUALIZE & REBALANCE MATRIX</span>
+            </button>
+          </div>
+          <div class="rebalance-info-footnote">
+            Rebalance automatically pairs Rank 1 + Rank 4 (Team A) vs Rank 2 + Rank 3 (Team B).
+          </div>
+        </div>
+
+        <div class="guest-waiting-box" id="guest-round-waiting" style="display: none;">
+          <div class="pulsing-loader"></div>
+          <p>Awaiting host operative to initiate next matrix sequence...</p>
+        </div>
+
+        <!-- Universal Exit Room Button for Round Over (Host & Guests) -->
+        <div class="round-over-exit-box">
+          <button id="btn-exit-round-over" class="btn btn-secondary btn-exit-room full-width" type="button">
+            <span>🚪 Exit Room & Return to Lobby</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- MODAL 3: DEDUCTION MATRIX HUD & DOSSIER -->
+    <!-- ============================================================ -->
+    <div id="modal-matrix-dossier" class="modal-backdrop">
+      <div class="modal-sheet glass-panel dossier-sheet">
+        <div class="modal-sheet-header">
+          <div class="modal-sheet-title">TACTICAL DEDUCTION DOSSIER</div>
+          <button class="modal-close-btn" id="btn-close-dossier">✕</button>
+        </div>
+
+        <div class="dossier-body">
+          <div class="dossier-section">
+            <h3>THE MATHEMATICAL DECK (15 CARDS)</h3>
+            <p>5 distinct suits. Exactly <strong>3 identical cards per suit</strong>. No numbers, no suits trump others.</p>
+            <div class="matrix-table-grid">
+              <div class="m-cell">♠ Spades: 3</div>
+              <div class="m-cell">♥ Hearts: 3</div>
+              <div class="m-cell">♦ Diamonds: 3</div>
+              <div class="m-cell">♣ Clubs: 3</div>
+              <div class="m-cell demon-cell">👿 Demon: 3</div>
+            </div>
+          </div>
+
+          <div class="dossier-section">
+            <h3>DEDUCTION THEOREM</h3>
+            <ul class="dossier-list">
+              <li><strong>The Target:</strong> 1 card pulled into the sealed vault at the start of the round.</li>
+              <li><strong>Hands:</strong> 3 cards dealt to Team A, 3 to Team B. (8 remain in deck).</li>
+              <li><strong>The Golden Rule:</strong> If you see 3 cards of any suit (between your hand, teammate revelations, and public cemetery), that suit <em>CANNOT</em> be the target card.</li>
+              <li><strong>Eliminated Suits:</strong> Incorrect guesses are instantly eliminated from the pool.</li>
+            </ul>
+          </div>
+
+          <div class="dossier-section">
+            <h3>ROTATION LOOP</h3>
+            <p class="rotation-code">Alpha 1 → Omega 1 → Alpha 2 → Omega 2 → (Repeat)</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- MODAL 4: CONFIRM EXIT MODAL (MIDGAME & ROOM EXIT) -->
+    <!-- ============================================================ -->
+    <div id="modal-confirm-exit" class="modal-backdrop">
+      <div class="modal-card-center glass-panel confirm-exit-card">
+        <div class="confirm-exit-icon">🚪</div>
+        <div class="confirm-exit-subtitle">ABANDON SESSION</div>
+        <h2 class="confirm-exit-title">EXIT GAME ROOM?</h2>
+        <p class="confirm-exit-desc" id="confirm-exit-description">
+          Are you sure you want to exit? Your seat will be vacated and you will return to the lobby.
+        </p>
+
+        <div class="confirm-exit-actions">
+          <button id="btn-cancel-exit" class="btn btn-secondary full-width" type="button">
+            STAY IN MATCH
+          </button>
+          <button id="btn-confirm-exit" class="btn btn-danger-luxury full-width" type="button">
+            CONFIRM & EXIT
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div> <!-- End App Root -->
+
+  <!-- Realtime Network Transport Engine -->
+  <script src="mqttws31.min.js"></script>
+  <script>if (typeof Paho === 'undefined') { document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"><\/script>'); }</script>
+
+  <!-- Application Logic -->
+  <script src="script.js"></script>
+</body>
+</html>

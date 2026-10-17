@@ -1,0 +1,53 @@
+### 🛠️ Strategic Prompt: Collaborative 2v2 Card Engine & Visual Prototype
+
+#### 🌟 The Mission
+Act as an expert frontend creative technologist, mobile UI/UX engineer, and backend network architect. Your goal is to build a mobile-first, room-based 2v2 competitive card deduction game using a clean, lightweight standalone frontend stack (index.html, style.css, script.js). 
+
+**Crucial Deployment Constraint:** This application is being designed with the ultimate goal of being compiled into a mobile APK file for native Android distribution, as well as running smoothly on mobile web browsers over cellular networks. Keep the entire codebase streamlined, modular, and free of heavy external dependencies, database setups, or framework abstractions.
+
+---
+
+#### 🤝 Your Creative Liberty (Vibecoder Directive)
+We are treating you as the lead creative director for the visual identity and interface flow. **We want you to showcase your best work.** 
+*   **Aesthetics:** Design a highly professional, high-end, and premium playing card aesthetic. 
+*   **Visual Direction:** Do not feel trapped by standard game layouts or generic colors. Propose the exact color palettes, luxury accents, layout distributions, typography, and theme styling that you believe will look stunning on a high-definition mobile display.
+*   **Motion Design:** Implement fluid, physics-based or highly polished animations (for card drawing, transitions, and state changes) that feel incredibly premium.
+*   **Feedback Loop:** If you are unsure about a visual direction, layout choice, or animation style, **provide a functional prototype first and ask us if it hits the right mark.** We welcome your design suggestions and alternative proposals!
+
+---
+
+#### 📐 Core Game Loop & Mathematical Matrix
+While you have complete freedom over the visuals, the core underlying logical architecture must strictly adhere to these mechanics:
+
+*   **The Deck:** Exactly 15 total cards. 5 unique suits: Spades (♠), Hearts (♥), Diamonds (♦), Clubs (♣), and Demon (👿). There are exactly 3 identical cards per suit. Cards have no numerical values; they are identified purely by their suit symbol/vector.
+*   **The Target:** At the start of each round, 1 card is pulled from the deck array and stored as the hidden `targetCard`. The sole objective of the match is for a team to deduce this specific suit vector.
+*   **Shared Hands:** 3 cards are dealt to Team A, and 3 cards are dealt to Team B. These cards belong to the team universally as a shared container array, not to individual player slots.
+*   **Turn Rotation:** A strict 4-player rotation loop: Team A Player 1 → Team B Player 1 → Team A Player 2 → Team B Player 2.
+*   **Action Flow:** On their turn, an active player can either:
+    1.  **Reveal & Draw:** Move 1 to 3 selected cards from their team hand into a public `cemetery` log, automatically drawing replacements from the deck.
+    2.  **Submit Guess:** Formally guess the hidden target suit. A correct guess wins the round instantly. An incorrect guess flashes an error state, deactivates that suit option globally for future guesses, and passes the turn.
+
+---
+
+#### 🥷 The Hidden Rating & Equalization Engine
+*   **Invisible Points System:** Players must never see their current numerical scores or points anywhere on the user interface. Keep this data entirely hidden in the backend state.
+    *   *Reveal Action:* +10 points to the active player's round score.
+    *   *Correct Guess:* +50 points to both teammates on the winning team.
+    *   *Incorrect Guess:* -30 points strictly from the active player who guessed incorrectly.
+    *   *Round End Formula:* Calculate a recency-weighted rating: `newRating = (pointsThisRound * 0.7) + (previousRating * 0.3)`.
+*   **Host Rebalance Matrix:** The host interface must feature a specific "Equalize & Rebalance Matrix" button. When triggered at the end of a round, the engine must silently execute a mandatory structural rebuild within the current room session:
+    1.  Sort all 4 connected players by their computed performance `rating` from highest to lowest.
+    2.  Automatically assign Rank 1 (highest) and Rank 4 (lowest) to form the new Team A.
+    3.  Automatically assign Rank 2 and Rank 3 to form the new Team B.
+    4.  Flush all hands, reset the deck array pointer, and instantly transition to kick off the next round seamlessly within the exact same session container.
+
+---
+
+#### 📱 Multi-Device Architecture & Mobile Security
+*   **Strict Multi-Device Sync:** This game is **not** pass-and-play. It is a strict multi-device, separate-screen experience where 4 players interact simultaneously on their own physical phones.
+*   **The Pipeline:** Use the free public WebSocket proxy (`wss://api.piesocket.com/v3/demo?api_key=VCXCEuvYube6tgDo148wZ2Pp39369A8sESmYswPM`) to broadcast global state mutations via JSON payloads. When a packet arrives, each device must re-render to match.
+*   **Local UI Isolation (No Screen Peeking):** 
+    *   Card highlights or touches must exist *purely* in local client-side memory. Opponents and teammates must not see what cards you are touching or selecting until an action is executed.
+    *   Implement a robust hand-masking toggle so players can safely hide/unmask their hand on their own physical screen without affecting their teammate's display.
+*   **Touch Optimization:** Remove all desktop-centric hover states or focus outlines. Interaction states must trigger exclusively on a clean touch-event release (`touchend`) to prevent neighboring players from catching visual hints or input reflections on physical mobile screens.
+*   **Hot-Swap Re-entry:** Every state mutation must serialize to `localStorage` bound to a unique 4-character Room ID. If a player refreshes their browser or drops connection, the script must parse the storage, bypass credential screens, and hot-swap them back into their active team slot seamlessly.

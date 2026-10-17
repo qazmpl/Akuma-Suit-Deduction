@@ -1,0 +1,1 @@
+- [MVP scope](mvp-scope.md) — The baseline game stays a five-suit 2v2 deduction loop; Akuma abilities are out of scope.

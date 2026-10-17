@@ -1,0 +1,24 @@
+kind = "mobile"
+previewPath = "/"
+title = "Akuma Deduction"
+description = "A mobile multiplayer card deduction game where four players split into two teams, share clues by revealing cards, and race to identify the hidden target suit."
+version = "1.0.0"
+id = "artifacts/akuma-deduction"
+router = "expo-domain"
+
+[[services]]
+name = "expo"
+ensurePreviewReachable = "/status"
+paths = [ "/" ]
+localPort = 21953
+
+[services.development]
+run = "pnpm --filter @workspace/akuma-deduction run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/akuma-deduction", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/akuma-deduction", "run", "serve" ]
+
+[services.env]
+PORT = "21953"
+BASE_PATH = "/"

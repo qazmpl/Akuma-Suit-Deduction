@@ -1,0 +1,26 @@
+{
+  "expo": {
+    "name": "Akuma Deduction",
+    "slug": "akuma-deduction",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "akuma-deduction",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "backgroundColor": "#0d1010"
+    },
+    "ios": {
+      "supportsTablet": false
+    },
+    "android": {},
+    "web": {
+      "favicon": "./assets/images/icon.png"
+    },
+    "plugins": ["expo-router"],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}
